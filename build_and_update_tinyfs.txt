@@ -1,0 +1,23 @@
+To create a simple "tinyfs.gz" image (containing busybox,
+sudo, the needed libraries, and some boot scripts) you can
+use the "BuildCore" scripts:
+	git clone https://gitlab.retis.sssup.it/l.abeni/BuildCore.git
+	mkdir TinyFS
+	cd TinyFS/
+	sh ../BuildCore/buildcore.sh $(pwd)/tinyfs.gz
+
+
+To update this image (adding some files to it), create a
+new cpio file by putting what you need in a directory,
+and then running
+	find . | cpio -H newc -o | gzip > ../mod.gz
+from inside the directory. For example, to add a module
+named "module.ko" to the image you can use
+	mkdir Tmp
+	cp module.ko Tmp
+	cd tmp
+	find . | cpio -H newc -o | gzip > ../mod.gz
+	cd ..
+The resulting ".gz" file can be concatenated with tinyfs.gz.
+For example,
+	cat mod.gz tinyfs.gz > test.gz
