@@ -1,36 +1,35 @@
-# main file name here
-SOURCE_FILE = main
+# desired module name
+MODULE_NAME = example_module
 
-# other sources to compile against (without extensions, separated by spaces). Can be left empty too.
-DEPENDENT_FILES = greet
+# all source names (both main and its dependencies) without extensions, separated by spaces
+SOURCES = main greet
 
-#KERNEL_DIR ?= /lib/modules/`uname -r`/build # system kernel build
-KERNEL_DIR ?= ../linux-5.8.14 # local kernel build
+# system kernel build
+#KERNEL_DIR ?= /lib/modules/`uname -r`/build
 
-obj-m = $(SOURCE_FILE).o # the kernel module name, used by kbuild
+# local kernel build
+KERNEL_DIR ?= ../linux-5.8.14
 
-# include other source dependencies in the kbuild process
-DEPENDENCIES := $(shell echo $(DEPENDENT_FILES) | sed '/^$$/!s/[^ ]*/&\.o/g') # sed '/^$$/!s/\>/\.o/g' was good too (but UNIX dependant)
+# main object, used by kbuild to produce the final MODULE_NAME.ko file
+obj-m = $(MODULE_NAME).o
 
-ifeq ($(DEPENDENCIES),$(subst  ,,$(DEPENDENCIES))) # check is empty or only spaces
-$(info no dependencies to compile against)
-else
-$(info dependencies contains "$(DEPENDENCIES)")
-$(SOURCE_FILE)-y := $(SOURCE_FILE).o $(DEPENDENCIES)
-endif
+# source dependencies in the kbuild process
+#$(MODULE_NAME)-objs := $(shell echo $(SOURCES) | sed '/^$$/!s/\>/\.o/g')
+# or simply...
+$(MODULE_NAME)-objs := $(addsuffix .o, $(SOURCES))
 
 all:
 	make -C $(KERNEL_DIR) M=`pwd` modules
 
 pack: all
 	# pack the compiled module in a gunzip
-	echo $(SOURCE_FILE).ko | cpio -H newc -o | gzip > $(SOURCE_FILE).gz
+	echo $(MODULE_NAME).ko | cpio -H newc -o | gzip > tmp_$(MODULE_NAME).gz
 	# add it to the minimal ramdisk for qemu
-	cat $(SOURCE_FILE).gz tinyfs.gz > tinyfs_$(SOURCE_FILE).gz
+	cat tmp_$(MODULE_NAME).gz tinyfs.gz > tinyfs_$(MODULE_NAME).gz
 
 run: pack
-	qemu-system-x86_64 -kernel $(KERNEL_DIR)/arch/x86/boot/bzImage -initrd tinyfs_$(SOURCE_FILE).gz
+	qemu-system-x86_64 -kernel $(KERNEL_DIR)/arch/x86/boot/bzImage -initrd tinyfs_$(MODULE_NAME).gz
 
 clean:
 	make -C $(KERNEL_DIR) M=`pwd` clean
-	rm -f $(SOURCE_FILE).gz tinyfs_$(SOURCE_FILE).gz
+	rm -f tmp_$(MODULE_NAME).gz tinyfs_$(MODULE_NAME).gz
